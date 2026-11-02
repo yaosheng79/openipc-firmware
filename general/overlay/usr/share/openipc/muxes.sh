@@ -5,7 +5,7 @@ if [ -e /usr/share/openipc/gpio.conf ]; then
 fi
 
 # GPIO pad mux — registers reset on power cycle, re-applied every boot
-devmem 0x112C0048 32 0x1D54  # GPIO8_7: 上拉，IO4档位5，SDIO1_CCLK_OUT
+devmem 0x112C0048 32 0x1D54  # GPIO8_7: 上拉，IO4档位3，SDIO1_CCLK_OUT
 devmem 0x112C004C 32 0x1174  # GPIO8_5: 上拉，SDIO1_CCMD
 devmem 0x112C0058 32 0x1174  # GPIO7_0: 上拉，SDIO1_CDATA3
 devmem 0x112C005C 32 0x1174  # GPIO7_1: 上拉，SDIO1_CDATA2
