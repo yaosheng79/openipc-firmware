@@ -27,6 +27,8 @@ define HI3881_OPENIPC_INSTALL_TARGET_CMDS
        $(TARGET_DIR)/vendor/firmware/hisilicon/hi3881_fw.bin
    $(INSTALL) -D -m 644 $(@D)/firmware/wifi_cfg/customer1/wifi_cfg \
        $(TARGET_DIR)/vendor/firmware/hisilicon/wifi_cfg
+   $(INSTALL) -D -m 644 $(@D)/components/linux/hostapd/entropy.bin \
+       $(TARGET_DIR)/etc/Wireless/entropy.bin
 endef
 
 $(eval $(generic-package))
