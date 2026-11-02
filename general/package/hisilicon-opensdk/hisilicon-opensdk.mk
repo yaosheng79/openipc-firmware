@@ -5,7 +5,7 @@
 ################################################################################
 
 HISILICON_OPENSDK_SITE = $(call github,openipc,openhisilicon,$(HISILICON_OPENSDK_VERSION))
-HISILICON_OPENSDK_VERSION = cffc152310bc42309327919453eba7e6d6752a38
+HISILICON_OPENSDK_VERSION = cabdcf89cae496e7ef1c2184ea5d24acb619cfdb
 
 HISILICON_OPENSDK_LICENSE = GPL-3.0
 HISILICON_OPENSDK_LICENSE_FILES = LICENSE
@@ -265,13 +265,18 @@ HISILICON_OPENSDK_SENSORS_hi3516cv200 = \
 	soi_jxh42/libsns_jxh42 \
 	sony_imx222/libsns_imx222
 HISILICON_OPENSDK_SENSORS_hi3516cv6xx = \
+	cvsens_cv2003/libsns_cv2003 \
 	galaxycore_gc4023/libsns_gc4023 \
+	galaxycore_gc4653/libsns_gc4653 \
 	omnivision_os04d10/libsns_os04d10 \
 	smart_sc431hai/libsns_sc431hai \
 	smart_sc4336p/libsns_sc4336p \
 	smart_sc450ai/libsns_sc450ai \
 	smart_sc500ai/libsns_sc500ai \
-	sony_imx335/libsns_imx335
+	sony_imx335/libsns_imx335 \
+	sony_imx662/libsns_imx662 \
+	superpix_sp2308/libsns_sp2308 \
+	visemi_vs4388/libsns_vs4388
 HISILICON_OPENSDK_SENSORS_hi3519dv500 = \
 	gst_412c/libsns_gst412c \
 	omnivision_os04a10/libsns_os04a10 \
@@ -312,10 +317,11 @@ HISILICON_OPENSDK_SENSORS = $(HISILICON_OPENSDK_SENSORS_$(OPENIPC_SOC_FAMILY))
 # already fills 5119.32 KB of it (CI run 39116182919: "0KB left"). The IMX335
 # module is ~20 KB compressed and does not fit; 5 MP also needs osmem=64M, which
 # rules out most lite-class cv610 boards. hi3516cv6xx_ultimate is 16 MB and had
-# ~1.1 MB spare, so it keeps the sensor. Filtered here, at selection time, so an
-# image and its sysupgrade payload stay in step; a finalize-hook rm -f would not.
+# ~1.1 MB spare, so it keeps the sensor. IMX662 is held to ultimate for the same
+# room. Filtered here, at selection time, so an image and its sysupgrade payload
+# stay in step; a finalize-hook rm -f would not.
 ifeq ($(OPENIPC_SOC_MODEL)/$(OPENIPC_VARIANT),hi3516cv6xx/lite)
-HISILICON_OPENSDK_SENSORS := $(filter-out sony_imx335/libsns_imx335,$(HISILICON_OPENSDK_SENSORS))
+HISILICON_OPENSDK_SENSORS := $(filter-out sony_imx335/libsns_imx335 sony_imx662/libsns_imx662,$(HISILICON_OPENSDK_SENSORS))
 endif
 
 # fpv variant on V4 (hi3516ev200 + gk7205v200): restrict to the high-fps
@@ -830,7 +836,6 @@ define HISILICON_OPENSDK_FINALIZE_MODULES_GK7205V200
 		rm -f $(TARGET_DIR)/lib/modules/*/extra/open_$${mod}.ko; \
 	done
 	rm -f $(TARGET_DIR)/lib/modules/*/extra/open_ive_neo.ko
-	rm -f $(TARGET_DIR)/lib/modules/*/extra/open_adc.ko
 	$(LINUX_RUN_DEPMOD)
 endef
 HISILICON_OPENSDK_TARGET_FINALIZE_HOOKS += HISILICON_OPENSDK_FINALIZE_MODULES_GK7205V200
@@ -848,24 +853,23 @@ endef
 HISILICON_OPENSDK_TARGET_FINALIZE_HOOKS += HISILICON_OPENSDK_FINALIZE_MODULES_GK7205V500
 endif
 
-# Modules built for V4 ev200 by openhisilicon's Kbuild but never insmod'd
+# A module built for V4 ev200 by openhisilicon's Kbuild but never insmod'd
 # on V4 — load_hisilicon doesn't reference them, majestic / userspace MPI
-# doesn't call in, no init script loads them. Shipped as dead weight in
+# doesn't call in, no init script loads it. Shipped as dead weight in
 # /lib/modules/<kver>/extra/ on every ev200 lite rootfs. Skip the install
-# so the bytes don't compete with majestic for the 5 MB NOR partition cap
+# so its bytes don't compete with majestic for the 5 MB NOR partition cap
 # on boards like hi3518ev300_lite.
 #
 #   - open_ive_neo.ko (~12 KB)  — cv500-targeted experimental, also
 #                                  compiles for V4; the .c grew from
 #                                  66 KB → 130 KB source in recent
 #                                  cv500 dispatch work.
-#   - open_adc.ko (~6 KB)       — generic ADC driver, only relevant for
-#                                  boards exposing GPIO/temp via sysfs;
-#                                  not referenced anywhere on
-#                                  ev300_lite / gk7205v200_lite nightly.
 #
-# Both still compile in CI (Kbuild unchanged) and cv500 keeps whatever
-# subset its own kbuild includes. gk7205v200 handles the same cleanup
+# It still compiles in CI (Kbuild unchanged) and cv500 keeps whatever
+# subset its own kbuild includes. open_adc.ko used to be skipped here too;
+# it is /dev/lsadc, the photocell input majestic's nightMode.adcReadout
+# reads on this family (OpenIPC/majestic#359), so load_hisilicon and
+# load_goke now load it and it ships. gk7205v200 handles the same cleanup
 # inline in HISILICON_OPENSDK_FINALIZE_MODULES_GK7205V200 above — putting
 # it in a separate post-hook would re-run the rsync from per-package and
 # undo the goke/ rename cleanup, re-introducing 1.9 MB of heavy modules
@@ -874,7 +878,6 @@ ifeq ($(OPENIPC_SOC_FAMILY),hi3516ev200)
 define HISILICON_OPENSDK_SKIP_UNUSED_EV200
 	$(if $(BR2_PER_PACKAGE_DIRECTORIES),rsync -a $(PER_PACKAGE_DIR)/hisilicon-opensdk/target/lib/modules/ $(TARGET_DIR)/lib/modules/)
 	rm -f $(TARGET_DIR)/lib/modules/*/extra/open_ive_neo.ko
-	rm -f $(TARGET_DIR)/lib/modules/*/extra/open_adc.ko
 	$(LINUX_RUN_DEPMOD)
 endef
 HISILICON_OPENSDK_TARGET_FINALIZE_HOOKS += HISILICON_OPENSDK_SKIP_UNUSED_EV200
