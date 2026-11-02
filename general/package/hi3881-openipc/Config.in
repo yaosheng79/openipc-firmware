@@ -1,0 +1,6 @@
+
+config BR2_PACKAGE_HI3881_OPENIPC
+	bool "hi3881-openipc"
+	depends on BR2_LINUX_KERNEL
+	help
+	  Wireless driver HI3881
