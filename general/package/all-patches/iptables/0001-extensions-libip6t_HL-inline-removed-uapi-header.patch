@@ -1,0 +1,22 @@
+--- a/extensions/libip6t_HL.c
++++ b/extensions/libip6t_HL.c
+@@ -6,7 +6,18 @@
+  */
+ #include <stdio.h>
+ #include <xtables.h>
+-#include <linux/netfilter_ipv6/ip6t_HL.h>
++#include <linux/types.h>
++
++/* linux/netfilter_ipv6/ip6t_HL.h was removed from kernel UAPI in Linux 5.15 */
++enum ip6t_HL_values {
++	IP6T_HL_SET = 0,
++	IP6T_HL_INC,
++	IP6T_HL_DEC,
++};
++struct ip6t_HL_info {
++	__u8	mode;
++	__u8	hop_limit;
++};
+
+ enum {
+ 	O_HL_SET = 0,
