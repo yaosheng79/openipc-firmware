@@ -83,4 +83,19 @@ if [ "$1" = "rtl8189ftv-t31-wyze-v3" ]; then
 	exit 0
 fi
 
+# Hi3881
+if [ "$1" = "hi3881" ]; then
+   . /usr/share/openipc/gpio.conf
+   gpio set $wifi_pwr
+   sleep 1
+   CFG_FILE="/vendor/firmware/hisilicon/wifi_cfg"
+   [ ! -f "$CFG_FILE" ] && exit 0
+   if grep -q "^CFG_MAC=00:00:00:00:00:00;" "$CFG_FILE"; then
+       NEW_MAC=$(get_mac wlan0 2>/dev/null | tr 'a-f' 'A-F')
+       [ -n "$NEW_MAC" ] && sed -i "s/CFG_MAC=00:00:00:00:00:00;/CFG_MAC=${NEW_MAC};/" "$CFG_FILE"
+   fi
+   modprobe hi3881
+   exit 0
+fi
+
 exit 1
