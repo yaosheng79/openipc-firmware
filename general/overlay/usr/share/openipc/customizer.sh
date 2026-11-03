@@ -1,20 +1,25 @@
 #!/bin/sh
-. /usr/share/openipc/gpio.conf
 
-cli -s .nightMode.irCutPin1         "$ircut1"
-cli -s .nightMode.irCutSingleInvert false
-cli -s .nightMode.colorToGray       true
-cli -s .nightMode.backlightPin      "$light_ir"
-cli -s .nightMode.lightMonitor      false
-cli -s .nightMode.lightSensorPin    "$light_sensor"
-cli -s .nightMode.lightSensorInvert false
-cli -s .nightMode.monitorDelay      0
-
-cli -s .video0.fps     5
+cli -s .video0.fps 5
 cli -s .video0.gopSize 2
-
 cli -s .video1.enabled true
-cli -s .video1.size    640x360
-
-cli -s .audio.enabled       true
+cli -s .video1.codec h264
+cli -s .video1.osd false
+cli -s .video1.size 640x360
+cli -s .jpeg.enabled false
+cli -s .osd.enabled true
+cli -s .osd.template "GATE %d.%m.%Y %H:%M:%S"
+cli -s .osd.bgAlpha 10
+cli -s .audio.enabled true
 cli -s .audio.outputEnabled true
+cli -s .nightMode.irCutPin1 4
+cli -s .nightMode.backlightPin 52
+cli -s .nightMode.lightSensorPin 9
+
+CFG_FILE="/vendor/firmware/hisilicon/wifi_cfg"
+if [ -f "$CFG_FILE" ]; then
+	if grep -q "^CFG_MAC=00:00:00:00:00:00;" "$CFG_FILE"; then
+		NEW_MAC=$(get_mac wlan0 2>/dev/null | tr 'a-f' 'A-F')
+		[ -n "$NEW_MAC" ] && sed -i "s/CFG_MAC=00:00:00:00:00:00;/CFG_MAC=${NEW_MAC};/" "$CFG_FILE"
+	fi
+fi

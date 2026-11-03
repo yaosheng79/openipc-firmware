@@ -4,9 +4,7 @@
 
 set -e
 
-fw_setenv wlandev hi3881
-fw_setenv wlanssid
-fw_setenv wlanpass
+flash_eraseall /dev/mtd1
 
 if [ "$1" = "-s" ]; then
 	sysupgrade -n -x
