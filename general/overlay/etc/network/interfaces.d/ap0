@@ -1,0 +1,11 @@
+iface ap0 inet manual
+    pre-up /bin/sh -c '. /usr/share/openipc/gpio.conf && gpio set $wifi_pwr'
+    pre-up modprobe hi3881 g_mode=1
+    pre-up hostapd -B /etc/hostapd.conf
+    pre-up sleep 0.1
+    pre-up ifconfig ap0 192.168.100.1 netmask 255.255.255.0
+    pre-up udhcpd /etc/udhcpd.conf
+    post-down killall -q hostapd
+    post-down killall -q udhcpd
+    post-down rmmod hi3881
+    post-down /bin/sh -c '. /usr/share/openipc/gpio.conf && gpio clear $wifi_pwr'

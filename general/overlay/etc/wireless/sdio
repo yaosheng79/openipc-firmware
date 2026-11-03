@@ -110,7 +110,7 @@ if [ "$1" = "hi3881" ]; then
        NEW_MAC=$(get_mac wlan0 2>/dev/null | tr 'a-f' 'A-F')
        [ -n "$NEW_MAC" ] && sed -i "s/CFG_MAC=00:00:00:00:00:00;/CFG_MAC=${NEW_MAC};/" "$CFG_FILE"
    fi
-   modprobe hi3881
    exit 0
+fi
 
 exit 1

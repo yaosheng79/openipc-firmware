@@ -5,3 +5,4 @@ BR2_PACKAGE_OPENIPC_NFS_ROOT:package/openipc-nfs-root/overlay
 # overlay so a majestic-free image carries no license for software it does
 # not have -- both gates key on the files' presence.
 BR2_PACKAGE_MAJESTIC:package/majestic/overlay
+BR2_PACKAGE_HI3881_OPENIPC:package/hi3881-openipc/overlay

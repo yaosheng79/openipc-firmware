@@ -39,6 +39,7 @@ set_wireless() {
 		# address, and the camera would answer on one subnet from two ports.
 		if [ -z "$(fw_printenv -n wlanssid 2>/dev/null)" ]; then
 			[ -e /sys/class/net/eth0 ] && ifup eth0
+			ifup ap0
 			return 0
 		fi
 		if dual; then
