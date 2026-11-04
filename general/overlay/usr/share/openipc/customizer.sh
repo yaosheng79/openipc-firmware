@@ -1,14 +1,13 @@
 #!/bin/sh
 
 cli -s .video0.fps 5
-cli -s .video0.gopSize 2
 cli -s .video1.enabled true
-cli -s .video1.codec h264
 cli -s .video1.osd false
 cli -s .video1.size 640x360
+cli -s .video2.codec h264
 cli -s .jpeg.enabled false
 cli -s .osd.enabled true
-cli -s .osd.template "GATE %d.%m.%Y %H:%M:%S"
+cli -s .osd.template "CCTV %d.%m.%Y %H:%M:%S"
 cli -s .osd.bgAlpha 10
 cli -s .audio.enabled true
 cli -s .audio.outputEnabled true
