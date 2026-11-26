@@ -1,0 +1,94 @@
+#!/bin/sh
+# Merge OpenIPC hi3518ev300 NOR flash components into a single image.
+#
+# USAGE
+#   contrib/merge-nor-hi3518ev300 <src-dir> [output]
+#
+#   src-dir   directory that contains the three input files:
+#               u-boot-hi3518ev300.image
+#               uImage
+#               rootfs.squashfs
+#   output    output filename (default: flash-hi3518ev300.bin)
+#
+# EXAMPLE
+#   # Build outputs land in new/; write combined image to current directory:
+#   contrib/merge-nor-hi3518ev300 new/
+#
+#   # Explicit output path:
+#   contrib/merge-nor-hi3518ev300 new/ /tmp/flash-hi3518ev300.bin
+#
+# FLASHING (U-Boot)
+#   Copy flash-hi3518ev300.bin to the SD card (new/ subdirectory), then:
+#
+#   mw.b 0x42000000 0xff 0xfa0000;
+#   fatload mmc 0:1 0x42000000 new/flash-hi3518ev300.bin;
+#   sf erase 0x60000 0xfa0000; sf write 0x42000000 0x60000 0xfa0000
+#
+#   The 0x0-0x5FFFF region (initial boot stage) is intentionally left untouched.
+#   env (0xA0000) and rootfs_data (0xB00000) regions are filled with 0xFF in the
+#   image, which has the same effect as the original standalone sf erase commands.
+#
+# FLASH LAYOUT (16 MB NOR, managed region 0x60000-0xFFFFFF)
+#   0x060000  u-boot        320 KB  (0x50000)
+#   0x0A0000  env            64 KB  0xFF
+#   0x0B0000  kernel       2368 KB  (0x250000)
+#   0x300000  rootfs       8192 KB  (0x800000)
+#   0xB00000  rootfs_data  5120 KB  0xFF
+
+set -e
+
+IMG_SIZE_KB=16000      # (0x1000000 - 0x60000) / 1024
+UBOOT_SEEK=0           # (0x060000 - 0x060000) / 1024
+KERNEL_SEEK=320        # (0x0B0000 - 0x060000) / 1024
+ROOTFS_SEEK=2688       # (0x300000 - 0x060000) / 1024
+
+UBOOT_MAX_KB=320
+KERNEL_MAX_KB=2368
+ROOTFS_MAX_KB=8192
+
+die() { echo "ERROR: $*" >&2; exit 1; }
+
+check_size() {
+    local name="$1" file="$2" max_kb="$3"
+    local kb=$(( ($(wc -c < "$file") + 1023) / 1024 ))
+    [ "$kb" -le "$max_kb" ] || die "$name is ${kb} KB, exceeds ${max_kb} KB limit"
+    echo "  $name: ${kb} KB / ${max_kb} KB"
+}
+
+usage() {
+    echo "Usage: $0 <src-dir> [output]"
+    echo "  src-dir  directory containing u-boot-hi3518ev300.image, uImage, rootfs.squashfs"
+    echo "  output   output filename (default: flash-hi3518ev300.bin)"
+    exit 1
+}
+
+[ $# -ge 1 ] || usage
+SRC="$1"
+OUT="${2:-flash-hi3518ev300.bin}"
+
+UBOOT="$SRC/u-boot-hi3518ev300.image"
+KERNEL="$SRC/uImage"
+ROOTFS="$SRC/rootfs.squashfs"
+
+for f in "$UBOOT" "$KERNEL" "$ROOTFS"; do
+    [ -f "$f" ] || die "not found: $f"
+done
+
+echo "Checking sizes..."
+check_size "u-boot" "$UBOOT" "$UBOOT_MAX_KB"
+check_size "kernel" "$KERNEL" "$KERNEL_MAX_KB"
+check_size "rootfs" "$ROOTFS" "$ROOTFS_MAX_KB"
+
+echo "Building $OUT (${IMG_SIZE_KB} KB)..."
+dd if=/dev/zero bs=1K count="$IMG_SIZE_KB" status=none | tr '\000' '\377' > "$OUT"
+dd if="$UBOOT"  of="$OUT" bs=1K seek="$UBOOT_SEEK"  conv=notrunc status=none
+dd if="$KERNEL" of="$OUT" bs=1K seek="$KERNEL_SEEK" conv=notrunc status=none
+dd if="$ROOTFS" of="$OUT" bs=1K seek="$ROOTFS_SEEK" conv=notrunc status=none
+
+echo ""
+echo "Done: $OUT"
+echo ""
+echo "U-Boot flash command:"
+echo "  mw.b 0x42000000 0xff 0xfa0000;"
+echo "  fatload mmc 0:1 0x42000000 $(basename "$OUT");"
+echo "  sf erase 0x60000 0xfa0000; sf write 0x42000000 0x60000 0xfa0000"
