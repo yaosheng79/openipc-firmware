@@ -4,29 +4,26 @@
 # USAGE
 #   contrib/merge-nor-hi3518ev300 <src-dir> [output]
 #
-#   src-dir   directory that contains the three input files:
+#   src-dir   directory that contains the three input files and receives the output:
 #               u-boot-hi3518ev300.image
 #               uImage
 #               rootfs.squashfs
-#   output    output filename (default: flash-hi3518ev300.bin)
+#               flash-hi3518ev300.bin  (generated)
 #
 # EXAMPLE
-#   # Build outputs land in new/; write combined image to current directory:
-#   contrib/merge-nor-hi3518ev300 new/
-#
-#   # Explicit output path:
-#   contrib/merge-nor-hi3518ev300 new/ /tmp/flash-hi3518ev300.bin
+#   # Build outputs land in /home/share/bin/; combined image is written to /home/share/bin/ as well:
+#   contrib/merge-nor-hi3518ev300 /home/share/bin/
 #
 # FLASHING (U-Boot)
 #   Copy flash-hi3518ev300.bin to the SD card (new/ subdirectory), then:
 #
-#   mw.b 0x42000000 0xff 0xfa0000;
+#   sf probe 0; sf lock 0;
 #   fatload mmc 0:1 0x42000000 new/flash-hi3518ev300.bin;
-#   sf erase 0x60000 0xfa0000; sf write 0x42000000 0x60000 0xfa0000
+#   sf erase 0x60000 0xfa0000; sf write 0x42000000 0x60000 ${filesize}
 #
 #   The 0x0-0x5FFFF region (initial boot stage) is intentionally left untouched.
-#   env (0xA0000) and rootfs_data (0xB00000) regions are filled with 0xFF in the
-#   image, which has the same effect as the original standalone sf erase commands.
+#   sf erase covers the full managed region; the image only extends to the end of
+#   rootfs, so env and rootfs_data are left at the erased state (0xFF) by hardware.
 #
 # FLASH LAYOUT (16 MB NOR, managed region 0x60000-0xFFFFFF)
 #   0x060000  u-boot        320 KB  (0x50000)
@@ -37,7 +34,6 @@
 
 set -e
 
-IMG_SIZE_KB=16000      # (0x1000000 - 0x60000) / 1024
 UBOOT_SEEK=0           # (0x060000 - 0x060000) / 1024
 KERNEL_SEEK=320        # (0x0B0000 - 0x060000) / 1024
 ROOTFS_SEEK=2688       # (0x300000 - 0x060000) / 1024
@@ -56,15 +52,15 @@ check_size() {
 }
 
 usage() {
-    echo "Usage: $0 <src-dir> [output]"
+    echo "Usage: $0 <src-dir>"
     echo "  src-dir  directory containing u-boot-hi3518ev300.image, uImage, rootfs.squashfs"
-    echo "  output   output filename (default: flash-hi3518ev300.bin)"
+    echo "           output flash-hi3518ev300.bin is written to the same directory"
     exit 1
 }
 
 [ $# -ge 1 ] || usage
-SRC="$1"
-OUT="${2:-flash-hi3518ev300.bin}"
+SRC="${1%/}"
+OUT="$SRC/flash-hi3518ev300.bin"
 
 UBOOT="$SRC/u-boot-hi3518ev300.image"
 KERNEL="$SRC/uImage"
@@ -79,6 +75,9 @@ check_size "u-boot" "$UBOOT" "$UBOOT_MAX_KB"
 check_size "kernel" "$KERNEL" "$KERNEL_MAX_KB"
 check_size "rootfs" "$ROOTFS" "$ROOTFS_MAX_KB"
 
+ROOTFS_KB=$(( ($(wc -c < "$ROOTFS") + 1023) / 1024 ))
+IMG_SIZE_KB=$(( ROOTFS_SEEK + ROOTFS_KB ))
+
 echo "Building $OUT (${IMG_SIZE_KB} KB)..."
 dd if=/dev/zero bs=1K count="$IMG_SIZE_KB" status=none | tr '\000' '\377' > "$OUT"
 dd if="$UBOOT"  of="$OUT" bs=1K seek="$UBOOT_SEEK"  conv=notrunc status=none
@@ -89,6 +88,6 @@ echo ""
 echo "Done: $OUT"
 echo ""
 echo "U-Boot flash command:"
-echo "  mw.b 0x42000000 0xff 0xfa0000;"
+echo "  sf probe 0; sf lock 0;"
 echo "  fatload mmc 0:1 0x42000000 $(basename "$OUT");"
-echo "  sf erase 0x60000 0xfa0000; sf write 0x42000000 0x60000 0xfa0000"
+echo "  sf erase 0x60000 0xfa0000; sf write 0x42000000 0x60000 \${filesize}"
